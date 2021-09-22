@@ -16,6 +16,7 @@
                 </div>
                 <button type="submit" class="btn btn-primary">Track Order</button>
             </div>
+        </form>
     </div>
     <div class="col my-4">
         <h2>Your Order Status</h2>
@@ -48,40 +49,44 @@ $('#trackerForm').submit(function(event) {
             encode: true
         })
         .done(function(data) {
-            console.log(data)
+            $('#citems').empty();
             data = JSON.parse(data);
-            updates = data[0];
-            if (updates.length > 0 & updates != {}) {
+            if (data['status'] == 'success') {
+                updates = data['updates'];
                 for (i = 0; i < updates.length; i++) {
                     let text = updates[i]['text'];
                     let time = updates[i]['time'];
-                    mystr = `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    myStr = `<li class="list-group-item d-flex justify-content-between align-items-center">
                     ${text}
                     <span class="badge badge-primary badge-pill">${time}</span>
                 </li>`
-                    $('#items').append(mystr);
+                    $('#items').append(myStr);
                 }
+                cart = JSON.parse(data['itemsJSON']);
+                amount = data['amount'];
+                for(item in cart) {
+                    let name = cart[item][1];
+                    let qty = cart[item][0];
+                    myStr1 = `<li class="list-group-item d-flex justify-content-between align-items-center">
+                                ${name}
+                                <span class="badge badge-primary badge-pill">${qty}</span>
+                            </li>`
+                        $('#citems').append(myStr1);
+                }
+                let amtStr = `<li class="list-group-item list-group-item-primary d-flex justify-content-between align-items-center">
+                        Total Bill :
+                        <h5><span class="badge badge-light">&#x20B9; ${amount}</span></h5>
+                    </li>`
+                $('#citems').append(amtStr);
             } else {
-            	mystr = `<li class="list-group-item d-flex justify-content-between align-items-center">
-                    Sorry, We are not able to fetch this order id and email. Make sure to type correct order Id and email</li>`
-            	$('#items').append(mystr);
+                console.log("lol");
+            	myStr = `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    Sorry, We are not able to fetch your Order Status. Make sure to enter correct order Id and email</li>`
+            	$('#items').append(myStr);
+            	myStr = `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    Sorry, We are not able to fetch your Order Details. Make sure to enter correct order Id and email</li>`
+                $('#citems').append(myStr);
             }
-            cart = JSON.parse(data[1]);
-            amount = JSON.parse(data[2]);
-            for(item in cart) {
-                let name = cart[item][1];
-                let qty = cart[item][0];
-                mystr1 = `<li class="list-group-item d-flex justify-content-between align-items-center">
-                            ${name}
-                            <span class="badge badge-primary badge-pill">${qty}</span>
-                        </li>`
-                    $('#citems').append(mystr1);
-            }
-            let amtstr = `<li class="list-group-item list-group-item-primary d-flex justify-content-between align-items-center">
-                    Total Bill :
-                    <h5><span class="badge badge-light">&#x20B9; ${amount}</span></h5>
-                </li>`
-            $('#citems').append(amtstr);
         });
     event.preventDefault();
 });

@@ -53,18 +53,43 @@ def tracker(request):
                 updates = []
                 for item in update:
                     updates.append({'text': item.update_desc, 'time': item.timestamp})
-                    response = json.dumps([updates, order[0].items_json, order[0].amount], default=str)
+                    response = json.dumps(
+                        {'updates': updates, 'itemsJSON': order[0].items_json, 'amount': order[0].amount, 'status': 'success'}, default=str,
+                    )
                 return HttpResponse(response)
             else:
-                return HttpResponse('{}')
+                return HttpResponse('{"status": "no Items"}')
         except Exception as e:
-            return HttpResponse('{}')
+            return HttpResponse('{"status": "error"}')
 
     return render(request, 'shop/tracker.html')
 
 
+def searchMatch(query, item):
+    # helper function for search page
+    # for further optimization, look for TfidfVectorizer or universal sentence encoder
+    if query in item.desc.lower() or query in item.product_name.lower() or query in item.category.lower() or query in item.sub_category.lower():
+        return True
+    else:
+        return False
+
+
 def search(request):
-    return render(request, "shop/search.html")
+    query = request.GET.get('search')
+    allProds = []
+    catProds = Product.objects.values('category', 'id')
+    cats = {item["category"] for item in catProds}
+    for cat in cats:
+        prodTemp = Product.objects.filter(category=cat)
+        prod = [item for item in prodTemp if searchMatch(query, item)]
+        n = len(prod)
+        nSlides = n // 4 + ceil((n / 4) - (n // 4))
+        if len(prod) != 0:
+            allProds.append([prod, range(1, nSlides), nSlides])
+    params = {'allProds': allProds, 'msg': query, 'f': 1}
+    if len(allProds) == 0 or len(query) < 4:
+        params['f'] = 0
+    return render(request, "shop/search.html", params)
 
 
 def prodView(request, pid):
@@ -72,7 +97,10 @@ def prodView(request, pid):
     product = Product.objects.filter(id=pid)
     return render(request, "shop/prodView.html", {'product': product[0]})
 
+
 MERCHANT_KEY = 'YOUR_MERCHANT_KEY'
+
+
 def checkout(request):
     if request.method == "POST":
         items_json = request.POST.get('itemsJson', '')
@@ -93,29 +121,29 @@ def checkout(request):
         update.save()
         thank = True
         Oid = order.order_id
-        # return render(request, 'shop/checkout.html', {'thank': thank, 'id': Oid})
+        return render(request, 'shop/checkout.html', {'thank': thank, 'id': Oid})
         # request paytm to transfer the amount to your account after the payment by the user
-        param_dict = dict()
-        param_dict["body"] = {
-            "requestType": "Payment",
-            "mid": "YOUR_MID_HERE",
-            # "websiteName": "WEBSTAGING",
-            "WEBSITE": "WEBSTAGING",
-            "orderId": str(order.order_id),
-            "callbackUrl": "http://127.0.0.1:8000/shop/handlePayment/",
-            "txnAmount": {
-                "value": str(amount),
-                "currency": "INR",
-            },
-            "userInfo": {
-                "custId": email,
-            },
-        }
-        checksum = Checksum.generateSignature(json.dumps(param_dict["body"]), MERCHANT_KEY)
-        param_dict["head"] = {
-            "CHECKSUMHASH": checksum
-        }
-        return render(request, 'shop/paytm.html', {'param_dict': param_dict})
+        # param_dict = dict()
+        # param_dict["body"] = {
+        #     "requestType": "Payment",
+        #     "mid": "YOUR_MID_HERE",
+        #     # "websiteName": "WEBSTAGING",
+        #     "WEBSITE": "WEBSTAGING",
+        #     "orderId": str(order.order_id),
+        #     "callbackUrl": "http://127.0.0.1:8000/shop/handlePayment/",
+        #     "txnAmount": {
+        #         "value": str(amount),
+        #         "currency": "INR",
+        #     },
+        #     "userInfo": {
+        #         "custId": email,
+        #     },
+        # }
+        # checksum = Checksum.generateSignature(json.dumps(param_dict["body"]), MERCHANT_KEY)
+        # param_dict["head"] = {
+        #     "CHECKSUMHASH": checksum
+        # }
+        # return render(request, 'shop/paytm.html', {'param_dict': param_dict})
     return render(request, 'shop/checkout.html')
 
 
